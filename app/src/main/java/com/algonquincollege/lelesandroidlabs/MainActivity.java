@@ -104,6 +104,8 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
+
+
         if (foundUpperCase && foundLowerCase && foundNumber && foundSpecial) {
             Toast.makeText(this, "Your password is valid", Toast.LENGTH_SHORT).show();
             return true;
