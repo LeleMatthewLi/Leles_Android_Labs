@@ -2,5 +2,6 @@
     <string name="app_name">Lele\'s Android Labs</string>
     <string name="hello_message">Hello world!</string>
     <string name="button_message">I\'m a button</string>
+    <string name="title_activity_chat_room">ChatRoom</string>
 
 </resources>
