@@ -23,10 +23,10 @@ public class ChatMessage {
     @ColumnInfo(name="id")
     public int id;
 
-    public ChatMessage(String m, String t, boolean sent) {
-        message = m;
-        timeSent = t;
-        SendOrReceive = sent;
+    public ChatMessage(String message, String timeSent, boolean SendOrReceive) {
+        this.message = message;
+        this.timeSent = timeSent;
+        this.SendOrReceive = SendOrReceive;
     }
 
     // getter methods
