@@ -5,6 +5,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.room.Room;
 
 import android.os.Bundle;
 import android.view.View;
@@ -18,6 +19,8 @@ import com.algonquincollege.lelesandroidlabs.databinding.SentMessageBinding;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 class MyRowHolder extends RecyclerView.ViewHolder {
     TextView messageText;
@@ -31,10 +34,11 @@ class MyRowHolder extends RecyclerView.ViewHolder {
 
 }
 public class ChatRoom extends AppCompatActivity {
-    private ActivityChatRoomBinding binding;
+    ActivityChatRoomBinding binding;
     ArrayList<ChatMessage> messages = new ArrayList<>();
     ChatRoomViewModel chatModel ;
     private RecyclerView.Adapter myAdapter;
+    ChatMessageDAO cmDAO;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -43,12 +47,23 @@ public class ChatRoom extends AppCompatActivity {
         messages = chatModel.messages.getValue();
         if(messages == null) {
             chatModel.messages.postValue( messages = new ArrayList<ChatMessage>());
+
+            Executor thread = Executors.newSingleThreadExecutor();
+            thread.execute(() ->
+            {
+                messages.addAll(cmDAO.getAllMessages()); //Once you get the data from database
+
+                runOnUiThread(() -> binding.recyclerView.setAdapter(myAdapter)); //You can then load the RecyclerView
+            });
         }
+
+        MessageDatabase db = Room.databaseBuilder(getApplicationContext(), MessageDatabase.class, "database-name").build();
+        cmDAO = db.cmDAO();
 
         binding = ActivityChatRoomBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        binding.recycleView.setLayoutManager(new LinearLayoutManager(this));
+        binding.recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
         binding.sendButton.setOnClickListener(click -> {
             String message = binding.textInput.getText().toString();
@@ -70,7 +85,7 @@ public class ChatRoom extends AppCompatActivity {
             binding.textInput.setText("");
         });
 
-        binding.recycleView.setAdapter(myAdapter = new RecyclerView.Adapter<MyRowHolder>() {
+        binding.recyclerView.setAdapter(myAdapter = new RecyclerView.Adapter<MyRowHolder>() {
             @NonNull
             @Override
             public MyRowHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -100,12 +115,15 @@ public class ChatRoom extends AppCompatActivity {
             @Override
             public int getItemViewType(int position) {
                 ChatMessage chatMessage = messages.get(position);
-                if (chatMessage.isSentButton()) {
+                if (chatMessage.SendOrReceive()) {
                     return 0;
                 } else {
                     return 1;
                 }
             }
+
+
+
         });
     }
 }
