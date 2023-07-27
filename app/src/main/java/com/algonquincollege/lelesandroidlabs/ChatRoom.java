@@ -28,31 +28,32 @@ import java.util.concurrent.Executors;
 
 
 public class ChatRoom extends AppCompatActivity {
+
     ActivityChatRoomBinding binding;
     ArrayList<ChatMessage> messages;
-    ChatRoomViewModel chatModel ;
+    ChatRoomViewModel chatModel;
+
     ChatMessageDAO cmDAO;
+
     private RecyclerView.Adapter myAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
         chatModel = new ViewModelProvider(this).get(ChatRoomViewModel.class);
-
         binding = ActivityChatRoomBinding.inflate(getLayoutInflater());
-
         setContentView(binding.getRoot());
 
-        MessageDatabase db = Room.databaseBuilder(getApplicationContext(), MessageDatabase.class, "database-name").build();
+        MessageDatabase db = Room.databaseBuilder(getApplicationContext(), MessageDatabase.class, "database-name").fallbackToDestructiveMigration().build();
+
         cmDAO = db.cmDAO();
 
         messages = chatModel.messages.getValue();
 
+        binding.recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
-
-        if(messages == null) {
-            chatModel.messages.postValue( messages = new ArrayList<ChatMessage>());
+        if (messages == null) {
+            chatModel.messages.setValue(messages = new ArrayList<>());
 
             Executor thread = Executors.newSingleThreadExecutor();
             thread.execute(() ->
@@ -63,48 +64,59 @@ public class ChatRoom extends AppCompatActivity {
             });
         }
 
-        binding.recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        binding.sendMessage.setOnClickListener(click -> {
+            SimpleDateFormat sdf = new SimpleDateFormat("EEEE, dd-MMM-yyyy hh-mm-ss a", getResources().getConfiguration().locale);
+            String currentDateAndTime = sdf.format(new Date());
+            messages.add(new ChatMessage(binding.messageInput.getText().toString(), currentDateAndTime, true));
 
-        binding.sendButton.setOnClickListener(click -> {
-            String message = binding.textInput.getText().toString();
-            SimpleDateFormat sdf = new SimpleDateFormat("EEEE, dd-MMM-yyyy hh-mm-ss a");
-            String currentDateandTime = sdf.format(new Date());
-            ChatMessage chatMessage = new ChatMessage(message, currentDateandTime, true);
-            messages.add(chatMessage);
-            myAdapter.notifyDataSetChanged();
-            binding.textInput.setText("");
+            Executor thread = Executors.newSingleThreadExecutor();
+            thread.execute(() ->
+                    cmDAO.insertMessage(new ChatMessage(binding.messageInput.getText().toString(), currentDateAndTime, true)));
+
+            myAdapter.notifyItemInserted(messages.size() - 1);
+
+            binding.messageInput.setText("");
         });
 
-        binding.receiveButton.setOnClickListener(click -> {
-            String message = binding.textInput.getText().toString();
-            SimpleDateFormat sdf = new SimpleDateFormat("EEEE, dd-MMM-yyyy hh-mm-ss a");
-            String currentDateandTime = sdf.format(new Date());
-            ChatMessage chatMessage = new ChatMessage(message, currentDateandTime, false);
-            messages.add(chatMessage);
-            myAdapter.notifyDataSetChanged();
-            binding.textInput.setText("");
+        binding.receiveMessage.setOnClickListener(click -> {
+            SimpleDateFormat sdf = new SimpleDateFormat("EEEE, dd-MMM-yyyy hh-mm-ss a", getResources().getConfiguration().locale);
+            String currentDateAndTime = sdf.format(new Date());
+            messages.add(new ChatMessage(binding.messageInput.getText().toString(), currentDateAndTime, false));
+
+            Executor thread = Executors.newSingleThreadExecutor();
+
+            thread.execute(() ->
+                    cmDAO.insertMessage(new ChatMessage(binding.messageInput.getText().toString(), currentDateAndTime, false)));
+
+
+            myAdapter.notifyItemInserted(messages.size() - 1);
+
+            binding.messageInput.setText("");
         });
 
         binding.recyclerView.setAdapter(myAdapter = new RecyclerView.Adapter<MyRowHolder>() {
             @NonNull
             @Override
             public MyRowHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-
                 if (viewType == 0) {
-                    SentMessageBinding binding = SentMessageBinding.inflate(getLayoutInflater());
-                    return new MyRowHolder( binding.getRoot() );
-                } else {
                     ReceiveMessageBinding binding = ReceiveMessageBinding.inflate(getLayoutInflater());
-                    return new MyRowHolder( binding.getRoot() );
+
+                    return new MyRowHolder(binding.getRoot());
+                } else {
+                    SentMessageBinding binding = SentMessageBinding.inflate(getLayoutInflater());
+
+                    return new MyRowHolder(binding.getRoot());
                 }
 
             }
 
             @Override
             public void onBindViewHolder(@NonNull MyRowHolder holder, int position) {
-                ChatMessage chatMessage = messages.get(position);
-                holder.messageText.setText(chatMessage.getMessage());
-                holder.timeText.setText(chatMessage.getTimeSent());
+                holder.message.setText("");
+                holder.time.setText("");
+                ChatMessage obj = messages.get(position);
+                holder.message.setText(obj.getMessage());
+                holder.time.setText(obj.getTimeSent());
             }
 
             @Override
@@ -112,42 +124,38 @@ public class ChatRoom extends AppCompatActivity {
                 return messages.size();
             }
 
-            @Override
             public int getItemViewType(int position) {
-                ChatMessage chatMessage = messages.get(position);
-                if (chatMessage.SendOrReceive()) {
-                    return 0;
-                } else {
+                if (messages.get(position).isSentButton()) {
                     return 1;
+                } else {
+                    return 0;
                 }
             }
-
-
-
         });
 
-        chatModel.selectedMessage.observe(this, newValue -> {
-            MessageDetailsFragment chatFragment = new MessageDetailsFragment(newValue);
-            getSupportFragmentManager()
-                    .beginTransaction()
-                    .replace(R.id.fragmentLocation, chatFragment)
-                    .commit();
+        chatModel.selectedMessage.observe(this, (newMessageValue) -> {
+            MessageDetailsFragment chatFragment = new MessageDetailsFragment(newMessageValue);
+            getSupportFragmentManager().beginTransaction().replace(R.id.fragment_location, chatFragment).addToBackStack("").commit();
         });
-
     }
 
     class MyRowHolder extends RecyclerView.ViewHolder {
-        TextView messageText;
-        TextView timeText;
+        TextView message;
+        TextView time;
+
         public MyRowHolder(@NonNull View itemView) {
             super(itemView);
 
             itemView.setOnClickListener(clk -> {
-//                int position = getAbsoluteAdapterPosition();
-//
+                int position = getAbsoluteAdapterPosition();
+
+                ChatMessage selected = messages.get(position);
+
+                chatModel.selectedMessage.postValue(selected);
+
 //                AlertDialog.Builder builder = new AlertDialog.Builder(ChatRoom.this);
 //
-//                builder.setMessage("Do you want to delete this message: \"" + messageText.getText() + "\"?")
+//                builder.setMessage("Do you want to delete this message: \"" + message.getText() + "\"?")
 //                        .setTitle("Delete Message")
 //                        .setNegativeButton("No", (dialog, id) -> {
 //                            dialog.dismiss();
@@ -172,17 +180,10 @@ public class ChatRoom extends AppCompatActivity {
 //                            myAdapter.notifyItemRemoved(position);
 //                        })
 //                        .create().show();
-//            });
-                int position = getAbsoluteAdapterPosition();
-                ChatMessage selected = messages.get(position);
+            });
 
-                chatModel.selectedMessage.postValue(selected);
-
-            messageText = itemView.findViewById(R.id.messageText);
-            timeText = itemView.findViewById(R.id.timeText);
-        });
-
-
+            message = itemView.findViewById(R.id.message);
+            time = itemView.findViewById(R.id.time);
+        }
     }
-}
 }

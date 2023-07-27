@@ -10,26 +10,25 @@ import java.util.Locale;
 
 @Entity
 public class ChatMessage {
-    @ColumnInfo(name="message")
-    private String message;
-
-    @ColumnInfo(name="TimeSent")
-    private String timeSent;
-
-    @ColumnInfo(name="SendOrReceive")
-    private boolean SendOrReceive;
-
     @PrimaryKey(autoGenerate = true)
-    @ColumnInfo(name="id")
+    @ColumnInfo(name = "id")
     public int id;
 
-    public ChatMessage(String message, String timeSent, boolean SendOrReceive) {
+    @ColumnInfo(name = "message")
+    protected String message;
+
+    @ColumnInfo(name = "timeSent")
+    protected String timeSent;
+
+    @ColumnInfo(name = "isSentButton")
+    protected boolean isSentButton;
+
+    public ChatMessage(String message, String timeSent, boolean isSentButton) {
         this.message = message;
         this.timeSent = timeSent;
-        this.SendOrReceive = SendOrReceive;
+        this.isSentButton = isSentButton;
     }
 
-    // getter methods
     public String getMessage() {
         return message;
     }
@@ -38,10 +37,7 @@ public class ChatMessage {
         return timeSent;
     }
 
-    public boolean SendOrReceive() {
-        return SendOrReceive;
+    public boolean isSentButton() {
+        return isSentButton;
     }
-
 }
-
-
