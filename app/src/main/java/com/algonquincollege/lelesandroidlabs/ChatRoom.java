@@ -3,6 +3,7 @@ package com.algonquincollege.lelesandroidlabs;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
 import androidx.lifecycle.ViewModelProvider;
@@ -11,9 +12,12 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.room.Room;
 
 import android.os.Bundle;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.algonquincollege.lelesandroidlabs.databinding.ActivityChatRoomBinding;
 import com.algonquincollege.lelesandroidlabs.databinding.ReceiveMessageBinding;
@@ -38,11 +42,52 @@ public class ChatRoom extends AppCompatActivity {
     private RecyclerView.Adapter myAdapter;
 
     @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.my_menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+
+        int itemId = item.getItemId();
+        ChatMessage selectedMessage = chatModel.selectedMessage.getValue();
+
+        if (itemId == R.id.item_1 && selectedMessage != null) {
+            AlertDialog.Builder builder = new AlertDialog.Builder(ChatRoom.this);
+            builder.setMessage("Do you want to delete this message: \"" + selectedMessage.getMessage() + "\"?")
+                    .setTitle("Delete Message")
+                    .setNegativeButton("No", (dialog, id) -> dialog.dismiss())
+                    .setPositiveButton("Yes", (dialog, id) -> {
+                        Executor thread = Executors.newSingleThreadExecutor();
+                        thread.execute(() -> {
+                            cmDAO.deleteMessage(selectedMessage);
+                            runOnUiThread(() -> {
+                                messages.remove(selectedMessage);
+                                myAdapter.notifyDataSetChanged();
+                                Toast.makeText(ChatRoom.this, "Message deleted", Toast.LENGTH_SHORT).show();
+                            });
+                        });
+                    })
+                    .create().show();
+        } else if (itemId == R.id.item_2) {
+            Toast.makeText(ChatRoom.this, "Version 1.0, created by Lele Li", Toast.LENGTH_SHORT).show();
+        }
+
+        return true;
+    }
+
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        chatModel = new ViewModelProvider(this).get(ChatRoomViewModel.class);
+
         binding = ActivityChatRoomBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+
+        Toolbar myToolbar = binding.myToolbar;
+        setSupportActionBar(myToolbar);
+
+        chatModel = new ViewModelProvider(this).get(ChatRoomViewModel.class);
 
         MessageDatabase db = Room.databaseBuilder(getApplicationContext(), MessageDatabase.class, "database-name").fallbackToDestructiveMigration().build();
 
@@ -109,6 +154,8 @@ public class ChatRoom extends AppCompatActivity {
                 }
 
             }
+
+
 
             @Override
             public void onBindViewHolder(@NonNull MyRowHolder holder, int position) {
